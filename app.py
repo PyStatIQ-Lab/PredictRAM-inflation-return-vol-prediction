@@ -1,8 +1,8 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
 from sklearn.linear_model import LinearRegression
-import streamlit as st
 
 # Function to process each stock and calculate predictions
 def process_stock(stock_ticker, inflation_changes, portfolio_df):
@@ -37,11 +37,11 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Drop NaN values (the first row will have NaN for Inflation_Change)
     merged_df = merged_df.dropna()
 
-    # Prepare the features (X) and target variable (y) for closing price prediction
+    # Prepare the features (X) and target variable (y) for TCS.NS closing price prediction
     X_close = merged_df[['Inflation_Change']]  # Inflation change is the feature
-    y_close = merged_df['Close']  # Closing price is the target variable
+    y_close = merged_df['Close']  # TCS.NS closing price is the target variable
 
-    # Train a Linear Regression model for closing price prediction
+    # Train a Linear Regression model for TCS.NS closing price prediction
     close_model = LinearRegression()
     close_model.fit(X_close, y_close)
 
@@ -53,8 +53,14 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     volatility_model = LinearRegression()
     volatility_model.fit(X_volatility, y_volatility)
 
-    # Get the latest stock close price
+    # Get the latest stock close price and calculate the percentage change from the previous close
     latest_close = stock_data['Close'].iloc[-1]
+    previous_close = stock_data['Close'].iloc[-2]
+    percentage_change = ((latest_close - previous_close) / previous_close) * 100
+
+    # Get the stock quantity from the portfolio
+    stock_quantity = portfolio_df[portfolio_df['Stock'] == stock_ticker]['Quantity'].values[0]
+    stock_price = portfolio_df[portfolio_df['Stock'] == stock_ticker]['Price (INR)'].values[0]
 
     # Prepare a list to store the results
     results = []
@@ -73,6 +79,8 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
         # Append results to the list
         results.append({
             'Stock': stock_ticker,
+            'Quantity': stock_quantity,
+            'Stock Price (INR)': stock_price,
             'Inflation Change (%)': expected_inflation,
             'Predicted Close': f'{predicted_user_close[0]:.2f}',
             'Predicted Return (%)': f'{predicted_return:.2f}%',
@@ -82,34 +90,71 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Return the results
     return results
 
-# Streamlit app
+# Function to calculate portfolio-level predicted return and volatility
+def calculate_portfolio_results(all_results, inflation_changes, portfolio_df):
+    portfolio_results = []
+    
+    for inflation_change in inflation_changes:
+        total_value = 0
+        total_return = 0
+        total_volatility = 0
+        total_quantity = 0
+
+        for stock_result in all_results:
+            if stock_result['Inflation Change (%)'] == inflation_change:
+                stock_quantity = stock_result['Quantity']
+                stock_price = stock_result['Stock Price (INR)']
+                predicted_return = float(stock_result['Predicted Return (%)'].replace('%', ''))
+                predicted_volatility = float(stock_result['Predicted Volatility'])
+
+                total_value += stock_quantity * stock_price
+                total_return += (predicted_return * stock_quantity * stock_price) / total_value
+                total_volatility += (predicted_volatility * stock_quantity * stock_price) / total_value
+                total_quantity += stock_quantity
+
+        portfolio_results.append({
+            'Inflation Change (%)': inflation_change,
+            'Portfolio Predicted Return (%)': f'{total_return:.2f}%',
+            'Portfolio Predicted Volatility': f'{total_volatility:.4f}'
+        })
+
+    return portfolio_results
+
+# Streamlit Application
 def main():
-    st.title("Stock Prediction Based on Inflation Change")
+    st.title("Stock and Portfolio Prediction App")
 
-    # User inputs
-    stock_ticker = st.text_input("Enter Stock Ticker (e.g., TCS.NS)", "TCS.NS")
-    inflation_change = st.slider("Select Inflation Change (%)", 0.0, 5.0, 1.0, 0.1)
+    # Upload portfolio file
+    uploaded_file = st.file_uploader("Upload your portfolio Excel file", type=["xlsx"])
 
-    # Set up portfolio data (hardcoded here for simplicity, but can be modified to read from file)
-    portfolio_data = {
-        'Stock': [stock_ticker],
-        'Quantity': [100],  # Example quantity
-        'Price (INR)': [3500]  # Example stock price in INR
-    }
-    portfolio_df = pd.DataFrame(portfolio_data)
+    if uploaded_file is not None:
+        portfolio_df = pd.read_excel(uploaded_file)
 
-    # Predict stock results
-    results = process_stock(stock_ticker, [inflation_change], portfolio_df)
+        # Input inflation changes
+        st.sidebar.header("Inflation Changes")
+        inflation_changes = st.sidebar.text_input("Enter inflation changes (comma-separated)", "0.5,1.0,1.5")
+        inflation_changes = [float(x.strip()) for x in inflation_changes.split(",")]
 
-    # Display predictions
-    if results:
-        st.write(f"### Prediction Results for {stock_ticker}")
-        for result in results:
-            st.write(f"Inflation Change: {result['Inflation Change (%)']}%")
-            st.write(f"Predicted Close: {result['Predicted Close']}")
-            st.write(f"Predicted Return: {result['Predicted Return (%)']}")
-            st.write(f"Predicted Volatility: {result['Predicted Volatility']}")
-            st.write("-" * 50)
+        # Process each stock in the portfolio
+        stocks = portfolio_df['Stock'].tolist()
+        all_results = []
+
+        for stock in stocks:
+            stock_results = process_stock(stock, inflation_changes, portfolio_df)
+            all_results.extend(stock_results)
+
+        # Calculate portfolio-level results
+        portfolio_results = calculate_portfolio_results(all_results, inflation_changes, portfolio_df)
+
+        # Display stock predictions
+        st.header("Stock Predictions")
+        stock_results_df = pd.DataFrame(all_results)
+        st.dataframe(stock_results_df)
+
+        # Display portfolio predictions
+        st.header("Portfolio Predicted Return and Volatility")
+        portfolio_results_df = pd.DataFrame(portfolio_results)
+        st.dataframe(portfolio_results_df)
 
 if __name__ == "__main__":
     main()
