@@ -37,8 +37,9 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     previous_close = stock_data['Close'].iloc[-2]
     percentage_change = ((latest_close - previous_close) / previous_close) * 100
 
+    # Get the stock quantity from the portfolio
     stock_quantity = portfolio_df[portfolio_df['Stock'] == stock_ticker]['Quantity'].values[0]
-    stock_price = portfolio_df[portfolio_df['Stock'] == stock_ticker]['Price (INR)'].values[0]]
+    stock_price = portfolio_df[portfolio_df['Stock'] == stock_ticker]['Price (INR)'].values[0]
 
     results = []
 
