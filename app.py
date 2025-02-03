@@ -86,7 +86,6 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Return the results
     return results
 
-
 # Function to calculate portfolio-level predicted return and volatility
 def calculate_portfolio_results(all_results, inflation_changes, portfolio_df):
     portfolio_results = []
