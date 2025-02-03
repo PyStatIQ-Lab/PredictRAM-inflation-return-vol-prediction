@@ -4,6 +4,23 @@ import yfinance as yf
 from sklearn.linear_model import LinearRegression
 import streamlit as st
 
+# Predefined list of stocks
+stock_options = [
+    'RATNAMANI.NS', 'MRF.NS', 'PNBGILTS.NS', 'IRFC.NS', 'BOSCHLTD.NS',
+    'LICHSGFIN.NS', 'TVSHLTD.NS', 'CANFINHOME.NS', 'RECLTD.NS', 'PFC.NS',
+    'CHOLAFIN.NS', 'CHOLAHLDNG.NS', 'BAJAJHLDNG.NS', 'TATACOMM.NS', 'HONAUT.NS',
+    'ABBOTINDIA.NS', 'SHREECEM.NS'
+]
+
+# Sample portfolio dataframe (instead of file upload)
+portfolio_data = {
+    'Stock': ['RATNAMANI.NS', 'MRF.NS', 'PNBGILTS.NS'],  # Example, you can adjust
+    'Quantity': [10, 5, 20],
+    'Price (INR)': [1500, 10000, 1000]
+}
+
+portfolio_df = pd.DataFrame(portfolio_data)
+
 # Function to process each stock and calculate predictions
 def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Fetch stock data from Yahoo Finance
@@ -29,10 +46,6 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
 
     # Convert 'Date' column to Month-Year format in inflation_df
     inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y').str.strip()
-
-    # Debugging: Check unique Date values to ensure they match
-    st.write("Unique Dates in Stock Data:", stock_data['Date'].unique())
-    st.write("Unique Dates in Inflation Data:", inflation_df['Date'].unique())
 
     # Merge the inflation data with stock data on the 'Date' column
     # Using 'outer' merge first to inspect matching rows
@@ -101,82 +114,61 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
 # Streamlit UI
 st.title('Stock Portfolio Prediction Based on Inflation Changes')
 
-# Read the portfolio data from the user input file
-portfolio_file = st.file_uploader("Upload your portfolio Excel file", type="xlsx")
+# Select the stock from the predefined list
+stock_ticker = st.selectbox("Select Stock", stock_options)
 
-if portfolio_file is not None:
-    portfolio_df = pd.read_excel(portfolio_file)
+# Ask for expected inflation changes (3 scenarios)
+inflation_changes = []
+for i in range(3):
+    inflation_input = st.number_input(f'Enter expected inflation change for scenario {i+1} (in %): ', format="%.2f")
+    inflation_changes.append(inflation_input)
 
-    # Get the list of stocks from the portfolio
-    stocks = portfolio_df['Stock'].tolist()
+# Prepare a list to store all results
+all_results = []
 
-    # Ask for expected inflation changes (3 scenarios)
-    inflation_changes = []
-    for i in range(3):
-        inflation_input = st.number_input(f'Enter expected inflation change for scenario {i+1} (in %): ', format="%.2f")
-        inflation_changes.append(inflation_input)
+# Process the selected stock
+stock_results = process_stock(stock_ticker, inflation_changes, portfolio_df)
+all_results.extend(stock_results)
 
-    # Prepare a list to store all results
-    all_results = []
+# Convert results into a DataFrame for table display
+results_df = pd.DataFrame(all_results)
 
-    # Process each stock in the portfolio
-    for stock in stocks:
-        stock_results = process_stock(stock, inflation_changes, portfolio_df)
-        all_results.extend(stock_results)
+# Display the results in a table format
+st.write("Prediction Results for the Selected Stock:")
+st.dataframe(results_df)
 
-    # Convert results into a DataFrame for table display
-    results_df = pd.DataFrame(all_results)
+# Calculate portfolio predicted return and volatility
+portfolio_results = []
 
-    # Display the results in a table format
-    st.write("Prediction Results for All Stocks in Portfolio:")
-    st.dataframe(results_df)
-
-    # Calculate portfolio predicted return and volatility
-    portfolio_results = []
-
-    for inflation_change in inflation_changes:
-        total_value = 0
-        total_return = 0
-        total_volatility = 0
-        total_quantity = 0
+for inflation_change in inflation_changes:
+    total_value = 0
+    total_return = 0
+    total_volatility = 0
+    total_quantity = 0
+    
+    for stock_ticker in portfolio_df['Stock'].tolist():
+        stock_data = results_df[(results_df['Stock'] == stock_ticker) & (results_df['Inflation Change (%)'] == inflation_change)]
         
-        for stock_ticker in stocks:
-            stock_data = results_df[(results_df['Stock'] == stock_ticker) & (results_df['Inflation Change (%)'] == inflation_change)]
+        if not stock_data.empty:
+            stock_quantity = stock_data['Quantity'].values[0]
+            stock_price = stock_data['Stock Price (INR)'].values[0]
+            predicted_return = float(stock_data['Predicted Return (%)'].values[0].replace('%', ''))
+            predicted_volatility = float(stock_data['Predicted Volatility'].values[0])
             
-            if not stock_data.empty:
-                stock_quantity = stock_data['Quantity'].values[0]
-                stock_price = stock_data['Stock Price (INR)'].values[0]
-                predicted_return = float(stock_data['Predicted Return (%)'].values[0].replace('%', ''))
-                predicted_volatility = float(stock_data['Predicted Volatility'].values[0])
-                
-                total_value += stock_quantity * stock_price
-                total_return += (predicted_return * stock_quantity * stock_price) / total_value
-                total_volatility += (predicted_volatility * stock_quantity * stock_price) / total_value
-                total_quantity += stock_quantity
+            total_value += stock_quantity * stock_price
+            total_return += (predicted_return * stock_quantity * stock_price) / total_value
+            total_volatility += (predicted_volatility * stock_quantity * stock_price) / total_value
+            total_quantity += stock_quantity
 
-        portfolio_results.append({
-            'Inflation Change (%)': inflation_change,
-            'Portfolio Predicted Return (%)': f'{total_return:.2f}%',
-            'Portfolio Predicted Volatility': f'{total_volatility:.4f}'
-        })
+    portfolio_results.append({
+        'Inflation Change (%)': inflation_change,
+        'Portfolio Predicted Return (%)': f'{total_return:.2f}%',
+        'Portfolio Predicted Volatility': f'{total_volatility:.4f}'
+    })
 
-    # Convert portfolio results to DataFrame
-    portfolio_results_df = pd.DataFrame(portfolio_results)
+# Convert portfolio results to DataFrame
+portfolio_results_df = pd.DataFrame(portfolio_results)
 
-    # Display portfolio results
-    st.write("Portfolio Predicted Return and Volatility:")
-    st.dataframe(portfolio_results_df)
-
-    # Optionally, save the results to a new Excel file
-    st.download_button(
-        label="Download Prediction Results",
-        data=results_df.to_excel(index=False),
-        file_name="Client1_portfolio_predictions.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    st.download_button(
-        label="Download Portfolio Results",
-        data=portfolio_results_df.to_excel(index=False),
-        file_name="Client1_portfolio_overall_predictions.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+# Display portfolio results
+st.write("Portfolio Predicted Return and Volatility:")
+st.dataframe(portfolio_results_df)
