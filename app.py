@@ -13,7 +13,7 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Extract the 'Close' prices and reset the index
     stock_data = data[['Close']].reset_index()
 
-    # Format the 'Date' column to match the inflation data
+    # Format the 'Date' column to match the inflation data (convert to '%b-%y')
     stock_data['Date'] = stock_data['Date'].dt.strftime('%b-%y')
 
     # Calculate daily returns of the stock
@@ -22,14 +22,17 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Calculate rolling volatility (standard deviation of returns over a 30-day window)
     stock_data['Volatility'] = stock_data['Daily_Return'].rolling(window=30).std() * np.sqrt(252)  # Annualized volatility
 
-    # Merge the inflation data with stock closing data on the 'Date' column
+    # Define inflation data
     inflation_data = {
         'Date': ['Jan-23', 'Feb-23', 'Mar-23', 'Apr-23', 'May-23', 'Jun-23', 'Jul-23', 'Aug-23', 'Sep-23', 'Oct-23', 'Nov-23', 'Dec-23', 'Jan-24', 'Feb-24', 'Mar-24', 'Apr-24', 'May-24', 'Jun-24', 'Jul-24', 'Aug-24', 'Sep-24', 'Oct-24', 'Nov-24', 'Dec-24'],
         'Inflation': [6.155075939, 6.16, 5.793650794, 5.090054816, 4.418604651, 5.572755418, 7.544264819, 6.912442396, 5.02, 4.87, 5.55, 5.69, 5.1, 5.09, 4.85, 4.83, 4.75, 5.08, 3.54, 3.65, 5.49, 5, 6, 5.5]
     }
     inflation_df = pd.DataFrame(inflation_data)
     
-    # Merge the inflation data with the stock data
+    # Ensure the inflation data Date column is in '%b-%y' format (if not already)
+    inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y')
+
+    # Merge the inflation data with the stock data on the 'Date' column
     merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date')
 
     # Calculate inflation change (month-to-month difference)
