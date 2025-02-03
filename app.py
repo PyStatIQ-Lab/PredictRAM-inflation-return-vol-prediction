@@ -27,9 +27,17 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
         'Inflation': [6.155075939, 6.16, 5.793650794, 5.090054816, 4.418604651, 5.572755418, 7.544264819, 6.912442396, 5.02, 4.87, 5.55, 5.69, 5.1, 5.09, 4.85, 4.83, 4.75, 5.08, 3.54, 3.65, 5.49, 5, 6, 5.5]
     }
     inflation_df = pd.DataFrame(inflation_data)
-    
+
+    # Debug: Print the 'Date' columns of both DataFrames
+    st.write("Inflation DataFrame Dates:", inflation_df['Date'].tolist())
+    st.write("Stock DataFrame Dates:", stock_data['Date'].tolist())
+
     # Merge the inflation data with the stock data
-    merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date')
+    try:
+        merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date', how='inner')
+    except Exception as e:
+        st.error(f"Error merging DataFrames: {e}")
+        return []
 
     # Calculate inflation change (month-to-month difference)
     merged_df['Inflation_Change'] = merged_df['Inflation'].diff()
