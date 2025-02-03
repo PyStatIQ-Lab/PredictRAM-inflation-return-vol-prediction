@@ -12,7 +12,7 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Extract the 'Close' prices and reset the index
     stock_data = data[['Close']].reset_index()
 
-    # Format the 'Date' column in stock_data to match the format of inflation_df (e.g., 'Jan-23')
+    # Format the 'Date' column to match the inflation data
     stock_data['Date'] = stock_data['Date'].dt.strftime('%b-%y')
 
     # Calculate daily returns of the stock
@@ -21,9 +21,13 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Calculate rolling volatility (standard deviation of returns over a 30-day window)
     stock_data['Volatility'] = stock_data['Daily_Return'].rolling(window=30).std() * np.sqrt(252)  # Annualized volatility
 
-    # Standardize the 'Date' format in inflation_df to match stock_data's 'Date' format (e.g., 'Jan-23')
-    inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y')
-
+    # Merge the inflation data with stock closing data on the 'Date' column
+    inflation_data = {
+        'Date': ['Jan-23', 'Feb-23', 'Mar-23', 'Apr-23', 'May-23', 'Jun-23', 'Jul-23', 'Aug-23', 'Sep-23', 'Oct-23', 'Nov-23', 'Dec-23', 'Jan-24', 'Feb-24', 'Mar-24', 'Apr-24', 'May-24', 'Jun-24', 'Jul-24', 'Aug-24', 'Sep-24', 'Oct-24', 'Nov-24', 'Dec-24'],
+        'Inflation': [6.155075939, 6.16, 5.793650794, 5.090054816, 4.418604651, 5.572755418, 7.544264819, 6.912442396, 5.02, 4.87, 5.55, 5.69, 5.1, 5.09, 4.85, 4.83, 4.75, 5.08, 3.54, 3.65, 5.49, 5, 6, 5.5]
+    }
+    inflation_df = pd.DataFrame(inflation_data)
+    
     # Merge the inflation data with the stock data
     merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date')
 
@@ -116,36 +120,48 @@ def calculate_portfolio_results(all_results, inflation_changes, portfolio_df):
 
     return portfolio_results
 
-# Streamlit application
-def main():
+# Streamlit App
+def run():
     st.title("Stock Prediction Dashboard")
 
-    # Read the portfolio data for multiple clients
-    client_files = ['Client1_portfolio.xlsx', 'Client2_portfolio.xlsx', 'Client3_portfolio.xlsx']
+    # Upload the portfolio data
+    uploaded_files = st.file_uploader("Upload Portfolio Files", type=['xlsx'], accept_multiple_files=True)
+
     inflation_changes = [0.5, 1.0, 1.5]  # Example inflation changes (you can modify this)
-    
-    # Display and process each client's data
-    for client_file in client_files:
-        portfolio_df = pd.read_excel(client_file)
-        client_name = client_file.split('_')[0]  # Extract client name (e.g., Client1)
-        stocks = portfolio_df['Stock'].tolist()
-        all_results = []
 
-        for stock in stocks:
-            stock_results = process_stock(stock, inflation_changes, portfolio_df)
-            all_results.extend(stock_results)
+    clients_data = {}
 
-        # Calculate portfolio-level results
-        portfolio_results = calculate_portfolio_results(all_results, inflation_changes, portfolio_df)
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            # Read the portfolio data for each client
+            portfolio_df = pd.read_excel(uploaded_file)
+            client_name = uploaded_file.name.split('_')[0]  # Extract client name (e.g., Client1)
+            stocks = portfolio_df['Stock'].tolist()
+            all_results = []
 
-        # Display results for the client
-        st.subheader(f"Prediction Results for {client_name}")
-        
-        st.markdown("### Stock Predictions")
-        st.write(pd.DataFrame(all_results))
+            # Process each stock for the client
+            for stock in stocks:
+                stock_results = process_stock(stock, inflation_changes, portfolio_df)
+                all_results.extend(stock_results)
 
-        st.markdown("### Portfolio Predicted Return and Volatility")
-        st.write(pd.DataFrame(portfolio_results))
+            # Calculate portfolio-level results
+            portfolio_results = calculate_portfolio_results(all_results, inflation_changes, portfolio_df)
+
+            # Store the results for each client
+            clients_data[client_name] = {
+                'stock_data': pd.DataFrame(all_results),
+                'portfolio_data': pd.DataFrame(portfolio_results)
+            }
+
+        # Display the results for each client
+        for client_name, client_data in clients_data.items():
+            st.subheader(f"Prediction Results for {client_name}")
+
+            st.write("### Stock Predictions")
+            st.dataframe(client_data['stock_data'])
+
+            st.write("### Portfolio Predicted Return and Volatility")
+            st.dataframe(client_data['portfolio_data'])
 
 if __name__ == '__main__':
-    main()
+    run()
