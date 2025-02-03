@@ -12,7 +12,7 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     stock_data = data[['Close']].reset_index()
 
     # Format the 'Date' column to match the inflation data
-    stock_data['Date'] = stock_data['Date'].dt.strftime('%b-%y')
+    stock_data['Date'] = stock_data['Date'].dt.strftime('%b-%y')  # Convert to string format '%b-%y'
 
     # Calculate daily returns of the stock
     stock_data['Daily_Return'] = stock_data['Close'].pct_change()
@@ -26,6 +26,9 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
         'Inflation': [6.155075939, 6.16, 5.793650794, 5.090054816, 4.418604651, 5.572755418, 7.544264819, 6.912442396, 5.02, 4.87, 5.55, 5.69, 5.1, 5.09, 4.85, 4.83, 4.75, 5.08, 3.54, 3.65, 5.49, 5, 6, 5.5]
     }
     inflation_df = pd.DataFrame(inflation_data)
+    
+    # Convert the inflation 'Date' column to match stock_data 'Date' format
+    inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y')  # Ensure '%b-%y' format
     
     # Merge the inflation data with the stock data
     merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date')
