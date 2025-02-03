@@ -47,15 +47,25 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Convert 'Date' column to Month-Year format in inflation_df
     inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y').str.strip()
 
-    # Merge the inflation data with stock data on the 'Date' column
-    # Using 'outer' merge first to inspect matching rows
-    merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date', how='outer')
+    # Debugging: Check the first few rows of each DataFrame
+    st.write("First few rows of inflation data:")
+    st.write(inflation_df.head())
+    
+    st.write("First few rows of stock data:")
+    st.write(stock_data.head())
 
-    # Check if there are unmatched rows
-    unmatched_rows = merged_df[merged_df.isnull().any(axis=1)]
-    if not unmatched_rows.empty:
-        st.write("There are unmatched rows due to missing or unmatched dates:")
-        st.write(unmatched_rows)
+    # Merge the inflation data with stock data on the 'Date' column
+    try:
+        merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date', how='outer')
+
+        # Debugging: Check for unmatched rows
+        unmatched_rows = merged_df[merged_df.isnull().any(axis=1)]
+        if not unmatched_rows.empty:
+            st.write("There are unmatched rows due to missing or unmatched dates:")
+            st.write(unmatched_rows)
+    except Exception as e:
+        st.write(f"Error during merge: {e}")
+        return []
 
     # Proceed with cleaning up merged data (if there are missing values)
     merged_df = merged_df.dropna()
