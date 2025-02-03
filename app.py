@@ -6,7 +6,6 @@ import streamlit as st
 
 # Function to process each stock and calculate predictions
 def process_stock(stock_ticker, inflation_changes, portfolio_df):
-    # Fetch stock data from Yahoo Finance
     data = yf.download(stock_ticker, start="2023-01-01", end="2024-12-31", progress=False)
 
     # Extract the 'Close' prices and reset the index
@@ -21,7 +20,7 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Calculate rolling volatility (standard deviation of returns over a 30-day window)
     stock_data['Volatility'] = stock_data['Daily_Return'].rolling(window=30).std() * np.sqrt(252)  # Annualized volatility
 
-    # Merge the inflation data with stock closing data on the 'Date' column
+    # Sample inflation data (could be input by the user in Streamlit)
     inflation_data = {
         'Date': ['Jan-23', 'Feb-23', 'Mar-23', 'Apr-23', 'May-23', 'Jun-23', 'Jul-23', 'Aug-23', 'Sep-23', 'Oct-23', 'Nov-23', 'Dec-23', 'Jan-24', 'Feb-24', 'Mar-24', 'Apr-24', 'May-24', 'Jun-24', 'Jul-24', 'Aug-24', 'Sep-24', 'Oct-24', 'Nov-24', 'Dec-24'],
         'Inflation': [6.155075939, 6.16, 5.793650794, 5.090054816, 4.418604651, 5.572755418, 7.544264819, 6.912442396, 5.02, 4.87, 5.55, 5.69, 5.1, 5.09, 4.85, 4.83, 4.75, 5.08, 3.54, 3.65, 5.49, 5, 6, 5.5]
@@ -37,11 +36,11 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Drop NaN values (the first row will have NaN for Inflation_Change)
     merged_df = merged_df.dropna()
 
-    # Prepare the features (X) and target variable (y) for TCS.NS closing price prediction
+    # Prepare the features (X) and target variable (y) for stock closing price prediction
     X_close = merged_df[['Inflation_Change']]  # Inflation change is the feature
-    y_close = merged_df['Close']  # TCS.NS closing price is the target variable
+    y_close = merged_df['Close']  # Stock closing price is the target variable
 
-    # Train a Linear Regression model for TCS.NS closing price prediction
+    # Train a Linear Regression model for stock closing price prediction
     close_model = LinearRegression()
     close_model.fit(X_close, y_close)
 
@@ -120,47 +119,40 @@ def calculate_portfolio_results(all_results, inflation_changes, portfolio_df):
 
     return portfolio_results
 
-# Streamlit App
-def main():
-    st.title("Stock Prediction Dashboard")
+# Streamlit app interface
+def streamlit_app():
+    st.title("Stock and Portfolio Predictions")
 
-    # Example inflation changes (can be customized by the user)
-    inflation_changes = [0.5, 1.0, 1.5]
+    # Upload portfolio files
+    uploaded_file = st.file_uploader("Upload your portfolio Excel file", type="xlsx")
+    if uploaded_file:
+        portfolio_df = pd.read_excel(uploaded_file)
 
-    # Read the portfolio data for multiple clients
-    client_files = ['Client1_portfolio.xlsx', 'Client2_portfolio.xlsx', 'Client3_portfolio.xlsx']
+        # Inflation changes
+        inflation_changes = st.multiselect(
+            "Select Inflation Changes (in %)", 
+            [0.5, 1.0, 1.5, 2.0, 2.5], 
+            default=[0.5, 1.0, 1.5]
+        )
 
-    clients_data = {}
-
-    # Process each client's portfolio
-    for client_file in client_files:
-        portfolio_df = pd.read_excel(client_file)
-        client_name = client_file.split('_')[0]  # Extract client name (e.g., Client1)
-        stocks = portfolio_df['Stock'].tolist()
+        # Process each stock and calculate results
         all_results = []
-
-        for stock in stocks:
+        for stock in portfolio_df['Stock']:
             stock_results = process_stock(stock, inflation_changes, portfolio_df)
             all_results.extend(stock_results)
 
         # Calculate portfolio-level results
         portfolio_results = calculate_portfolio_results(all_results, inflation_changes, portfolio_df)
 
-        # Store the results for each client
-        clients_data[client_name] = {
-            'stock_data': pd.DataFrame(all_results),
-            'portfolio_data': pd.DataFrame(portfolio_results)
-        }
+        # Display the results
+        st.subheader("Stock Predictions")
+        stock_data_df = pd.DataFrame(all_results)
+        st.dataframe(stock_data_df)
 
-    # Display the results for each client in Streamlit
-    for client_name, client_data in clients_data.items():
-        st.subheader(f"Prediction Results for {client_name}")
+        st.subheader("Portfolio Predicted Return and Volatility")
+        portfolio_data_df = pd.DataFrame(portfolio_results)
+        st.dataframe(portfolio_data_df)
 
-        st.write("### Stock Predictions")
-        st.dataframe(client_data['stock_data'])
-
-        st.write("### Portfolio Predicted Return and Volatility")
-        st.dataframe(client_data['portfolio_data'])
-
+# Run the app
 if __name__ == "__main__":
-    main()
+    streamlit_app()
