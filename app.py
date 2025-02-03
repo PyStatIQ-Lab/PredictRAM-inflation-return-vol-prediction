@@ -35,16 +35,18 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     st.write("Unique Dates in Inflation Data:", inflation_df['Date'].unique())
 
     # Merge the inflation data with stock data on the 'Date' column
-    merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date', how='inner')
+    # Using 'outer' merge first to inspect matching rows
+    merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date', how='outer')
 
-    # If the merge didn't work, print the unmatched dates
-    if merged_df.empty:
-        st.write("No matching dates found between inflation_df and stock_data. Check the following unmatched dates:")
-        unmatched_inflation_dates = set(inflation_df['Date']) - set(stock_data['Date'])
-        unmatched_stock_dates = set(stock_data['Date']) - set(inflation_df['Date'])
-        st.write("Unmatched Inflation Dates:", unmatched_inflation_dates)
-        st.write("Unmatched Stock Dates:", unmatched_stock_dates)
-    
+    # Check if there are unmatched rows
+    unmatched_rows = merged_df[merged_df.isnull().any(axis=1)]
+    if not unmatched_rows.empty:
+        st.write("There are unmatched rows due to missing or unmatched dates:")
+        st.write(unmatched_rows)
+
+    # Proceed with cleaning up merged data (if there are missing values)
+    merged_df = merged_df.dropna()
+
     # Calculate inflation change (month-to-month difference)
     merged_df['Inflation_Change'] = merged_df['Inflation'].diff()
 
