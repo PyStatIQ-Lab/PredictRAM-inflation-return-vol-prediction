@@ -143,6 +143,10 @@ all_results.extend(stock_results)
 # Convert results into a DataFrame for table display
 results_df = pd.DataFrame(all_results)
 
+# Flatten column names in case of MultiIndex
+if isinstance(results_df.columns, pd.MultiIndex):
+    results_df.columns = [' '.join(col).strip() for col in results_df.columns.values]
+
 # Display the results in a table format
 st.write("Prediction Results for the Selected Stock:")
 st.dataframe(results_df)
