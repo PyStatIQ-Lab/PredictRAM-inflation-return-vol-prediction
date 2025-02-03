@@ -121,47 +121,46 @@ def calculate_portfolio_results(all_results, inflation_changes, portfolio_df):
     return portfolio_results
 
 # Streamlit App
-def run():
+def main():
     st.title("Stock Prediction Dashboard")
 
-    # Upload the portfolio data
-    uploaded_files = st.file_uploader("Upload Portfolio Files", type=['xlsx'], accept_multiple_files=True)
+    # Example inflation changes (can be customized by the user)
+    inflation_changes = [0.5, 1.0, 1.5]
 
-    inflation_changes = [0.5, 1.0, 1.5]  # Example inflation changes (you can modify this)
+    # Read the portfolio data for multiple clients
+    client_files = ['Client1_portfolio.xlsx', 'Client2_portfolio.xlsx', 'Client3_portfolio.xlsx']
 
     clients_data = {}
 
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            # Read the portfolio data for each client
-            portfolio_df = pd.read_excel(uploaded_file)
-            client_name = uploaded_file.name.split('_')[0]  # Extract client name (e.g., Client1)
-            stocks = portfolio_df['Stock'].tolist()
-            all_results = []
+    # Process each client's portfolio
+    for client_file in client_files:
+        portfolio_df = pd.read_excel(client_file)
+        client_name = client_file.split('_')[0]  # Extract client name (e.g., Client1)
+        stocks = portfolio_df['Stock'].tolist()
+        all_results = []
 
-            # Process each stock for the client
-            for stock in stocks:
-                stock_results = process_stock(stock, inflation_changes, portfolio_df)
-                all_results.extend(stock_results)
+        for stock in stocks:
+            stock_results = process_stock(stock, inflation_changes, portfolio_df)
+            all_results.extend(stock_results)
 
-            # Calculate portfolio-level results
-            portfolio_results = calculate_portfolio_results(all_results, inflation_changes, portfolio_df)
+        # Calculate portfolio-level results
+        portfolio_results = calculate_portfolio_results(all_results, inflation_changes, portfolio_df)
 
-            # Store the results for each client
-            clients_data[client_name] = {
-                'stock_data': pd.DataFrame(all_results),
-                'portfolio_data': pd.DataFrame(portfolio_results)
-            }
+        # Store the results for each client
+        clients_data[client_name] = {
+            'stock_data': pd.DataFrame(all_results),
+            'portfolio_data': pd.DataFrame(portfolio_results)
+        }
 
-        # Display the results for each client
-        for client_name, client_data in clients_data.items():
-            st.subheader(f"Prediction Results for {client_name}")
+    # Display the results for each client in Streamlit
+    for client_name, client_data in clients_data.items():
+        st.subheader(f"Prediction Results for {client_name}")
 
-            st.write("### Stock Predictions")
-            st.dataframe(client_data['stock_data'])
+        st.write("### Stock Predictions")
+        st.dataframe(client_data['stock_data'])
 
-            st.write("### Portfolio Predicted Return and Volatility")
-            st.dataframe(client_data['portfolio_data'])
+        st.write("### Portfolio Predicted Return and Volatility")
+        st.dataframe(client_data['portfolio_data'])
 
-if __name__ == '__main__':
-    run()
+if __name__ == "__main__":
+    main()
