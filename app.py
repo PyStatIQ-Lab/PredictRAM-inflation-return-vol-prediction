@@ -9,27 +9,46 @@ import matplotlib.pyplot as plt
 def process_stock(stock_ticker, inflation_changes, portfolio_df):
     data = yf.download(stock_ticker, start="2023-01-01", end="2024-12-31", progress=False)
     stock_data = data[['Close']].reset_index()
+    
+    # Convert the 'Date' column to Month-Year format (same format as in inflation_df)
     stock_data['Date'] = stock_data['Date'].dt.strftime('%b-%y')
+
     stock_data['Daily_Return'] = stock_data['Close'].pct_change()
     stock_data['Volatility'] = stock_data['Daily_Return'].rolling(window=30).std() * np.sqrt(252)
 
+    # Inflation data
     inflation_data = {
         'Date': ['Jan-23', 'Feb-23', 'Mar-23', 'Apr-23', 'May-23', 'Jun-23', 'Jul-23', 'Aug-23', 'Sep-23', 'Oct-23', 'Nov-23', 'Dec-23', 'Jan-24', 'Feb-24', 'Mar-24', 'Apr-24', 'May-24', 'Jun-24', 'Jul-24', 'Aug-24', 'Sep-24', 'Oct-24', 'Nov-24', 'Dec-24'],
         'Inflation': [6.155075939, 6.16, 5.793650794, 5.090054816, 4.418604651, 5.572755418, 7.544264819, 6.912442396, 5.02, 4.87, 5.55, 5.69, 5.1, 5.09, 4.85, 4.83, 4.75, 5.08, 3.54, 3.65, 5.49, 5, 6, 5.5]
     }
-    inflation_df = pd.DataFrame(inflation_data)
     
-    merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date')
+    inflation_df = pd.DataFrame(inflation_data)
+
+    # Ensure both 'Date' columns are in the same format
+    inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y')
+
+    # Merge the inflation data with stock data on the 'Date' column
+    merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date', how='inner')
+
+    # Calculate inflation change (month-to-month difference)
     merged_df['Inflation_Change'] = merged_df['Inflation'].diff()
+
+    # Drop NaN values (the first row will have NaN for Inflation_Change)
     merged_df = merged_df.dropna()
 
-    X_close = merged_df[['Inflation_Change']]
-    y_close = merged_df['Close']
+    # Prepare features (X) and target variable (y) for TCS.NS closing price prediction
+    X_close = merged_df[['Inflation_Change']]  # Inflation change is the feature
+    y_close = merged_df['Close']  # TCS.NS closing price is the target variable
+
+    # Train a Linear Regression model for TCS.NS closing price prediction
     close_model = LinearRegression()
     close_model.fit(X_close, y_close)
 
+    # Prepare features (X) and target variable (y) for volatility prediction
     X_volatility = merged_df[['Inflation_Change']]
     y_volatility = merged_df['Volatility']
+
+    # Train a Linear Regression model for volatility prediction
     volatility_model = LinearRegression()
     volatility_model.fit(X_volatility, y_volatility)
 
@@ -59,6 +78,7 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
         })
 
     return results
+
 
 # Streamlit UI
 st.title("Stock Prediction Dashboard")
