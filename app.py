@@ -1,8 +1,8 @@
-import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
 from sklearn.linear_model import LinearRegression
+import streamlit as st
 
 # Function to process each stock and calculate predictions
 def process_stock(stock_ticker, inflation_changes, portfolio_df):
@@ -122,7 +122,7 @@ def calculate_portfolio_results(all_results, inflation_changes, portfolio_df):
 
 # Streamlit Application
 def main():
-    st.title("Stock and Portfolio Prediction App")
+    st.title("Stock Prediction Dashboard")
 
     # Upload portfolio file
     uploaded_file = st.file_uploader("Upload your portfolio Excel file", type=["xlsx"])
