@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 def process_stock(stock_ticker, inflation_changes, portfolio_df):
     data = yf.download(stock_ticker, start="2023-01-01", end="2024-12-31", progress=False)
     stock_data = data[['Close']].reset_index()
-    
+
     # Convert the 'Date' column to Month-Year format (same format as in inflation_df)
-    stock_data['Date'] = stock_data['Date'].dt.strftime('%b-%y')
+    stock_data['Date'] = stock_data['Date'].dt.strftime('%b-%y').str.strip()  # Strip any extra spaces
 
     stock_data['Daily_Return'] = stock_data['Close'].pct_change()
     stock_data['Volatility'] = stock_data['Daily_Return'].rolling(window=30).std() * np.sqrt(252)
@@ -24,11 +24,23 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     
     inflation_df = pd.DataFrame(inflation_data)
 
-    # Ensure both 'Date' columns are in the same format
-    inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y')
+    # Ensure both 'Date' columns are in the same format and strip any extra spaces
+    inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y').dt.strftime('%b-%y').str.strip()
+
+    # Debugging: Print the unique Date values to check if they match
+    print("Unique Dates in Stock Data:", stock_data['Date'].unique())
+    print("Unique Dates in Inflation Data:", inflation_df['Date'].unique())
 
     # Merge the inflation data with stock data on the 'Date' column
     merged_df = pd.merge(inflation_df, stock_data[['Date', 'Close', 'Volatility']], on='Date', how='inner')
+
+    # If the merge didn't work, print the unmatched dates
+    if merged_df.empty:
+        print("No matching dates found between inflation_df and stock_data. Check the following unmatched dates:")
+        unmatched_inflation_dates = set(inflation_df['Date']) - set(stock_data['Date'])
+        unmatched_stock_dates = set(stock_data['Date']) - set(inflation_df['Date'])
+        print("Unmatched Inflation Dates:", unmatched_inflation_dates)
+        print("Unmatched Stock Dates:", unmatched_stock_dates)
 
     # Calculate inflation change (month-to-month difference)
     merged_df['Inflation_Change'] = merged_df['Inflation'].diff()
@@ -36,11 +48,11 @@ def process_stock(stock_ticker, inflation_changes, portfolio_df):
     # Drop NaN values (the first row will have NaN for Inflation_Change)
     merged_df = merged_df.dropna()
 
-    # Prepare features (X) and target variable (y) for TCS.NS closing price prediction
+    # Prepare features (X) and target variable (y) for stock closing price prediction
     X_close = merged_df[['Inflation_Change']]  # Inflation change is the feature
-    y_close = merged_df['Close']  # TCS.NS closing price is the target variable
+    y_close = merged_df['Close']  # Stock closing price is the target variable
 
-    # Train a Linear Regression model for TCS.NS closing price prediction
+    # Train a Linear Regression model for stock closing price prediction
     close_model = LinearRegression()
     close_model.fit(X_close, y_close)
 
