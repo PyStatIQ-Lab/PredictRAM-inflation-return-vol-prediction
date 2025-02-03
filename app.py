@@ -151,38 +151,3 @@ if isinstance(results_df.columns, pd.MultiIndex):
 st.write("Prediction Results for the Selected Stock:")
 st.dataframe(results_df)
 
-# Calculate portfolio predicted return and volatility
-portfolio_results = []
-
-for inflation_change in inflation_changes:
-    total_value = 0
-    total_return = 0
-    total_volatility = 0
-    total_quantity = 0
-    
-    for stock_ticker in portfolio_df['Stock'].tolist():
-        stock_data = results_df[(results_df['Stock'] == stock_ticker) & (results_df['Inflation Change (%)'] == inflation_change)]
-        
-        if not stock_data.empty:
-            stock_quantity = stock_data['Quantity'].values[0]
-            stock_price = stock_data['Stock Price (INR)'].values[0]
-            predicted_return = float(stock_data['Predicted Return (%)'].values[0].replace('%', ''))
-            predicted_volatility = float(stock_data['Predicted Volatility'].values[0])
-            
-            total_value += stock_quantity * stock_price
-            total_return += (predicted_return * stock_quantity * stock_price) / total_value
-            total_volatility += (predicted_volatility * stock_quantity * stock_price) / total_value
-            total_quantity += stock_quantity
-
-    portfolio_results.append({
-        'Inflation Change (%)': inflation_change,
-        'Portfolio Predicted Return (%)': f'{total_return:.2f}%',
-        'Portfolio Predicted Volatility': f'{total_volatility:.4f}'
-    })
-
-# Convert portfolio results to DataFrame
-portfolio_results_df = pd.DataFrame(portfolio_results)
-
-# Display portfolio results
-st.write("Portfolio Predicted Return and Volatility:")
-st.dataframe(portfolio_results_df)
