@@ -101,8 +101,8 @@ if uploaded_file:
     # Read the portfolio data from the uploaded file
     portfolio_df = pd.read_excel(uploaded_file)
 
-    # Get the list of stocks from the portfolio
-    stocks = portfolio_df['Stock'].tolist()
+    # Pre-defined stock list
+    stocks = ['MRF.NS', 'PNBGILTS.NS', 'IRFC.NS', 'BOSCHLTD.NS', 'LICHSGFIN.NS', 'TVSHLTD.NS', 'CANFINHOME.NS', 'RECLTD.NS', 'PFC.NS']
 
     # User input for expected inflation changes (3 scenarios)
     inflation_changes = []
